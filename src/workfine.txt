@@ -1,0 +1,41 @@
+#include <Arduino.h>
+volatile bool detection = 0;
+volatile long Value = 0;
+volatile bool last_CH1_state = 0;
+unsigned long timenow = 0;
+void setup()
+{
+  pinMode(A0, INPUT);
+  PCICR |= (1 << PCIE0);   // enable PCMSK0 scan
+  PCMSK0 |= (1 << PCINT0); // Set pin 8 trigger an interrupt on state change. Input from optocoupler
+  pinMode(3, OUTPUT);      // Define 3 as output for the DIAC pulse
+}
+void loop()
+{
+
+}
+ISR(PCINT0_vect)
+{
+  Value = map(analogRead(A0), 6, 1014, 16200, 0);
+  if (PINB & B00000001)
+  { // We make an AND with the pin state register, We verify if pin 8 is HIGH???
+    if (last_CH1_state == 0)
+    {                // If the last state was 0, then we have a state change...
+      detection = 1; // We haev detected a state change!
+    }
+   
+  }
+  else if (last_CH1_state == 1)
+  {                     // If pin 8 is LOW and the last state was HIGH then we have a state change
+    detection = 1;      // We haev detected a state change!
+    last_CH1_state = 0; // Store the current state into the last state for the next loop
+  }
+   if (detection)
+    {
+      delayMicroseconds(Value); // This delay controls the power
+      digitalWrite(3, HIGH);
+      delayMicroseconds(16200 - Value);
+      digitalWrite(3, LOW);
+      detection = 0;
+    }
+}
